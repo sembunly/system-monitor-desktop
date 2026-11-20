@@ -15,12 +15,11 @@ set(CMAKE_AUTOMOC ON)
 find_package(Qt6 REQUIRED COMPONENTS
         Core
         Widgets
-        Sql
-        Charts
 )
 
-add_executable(SystemMonitor
-        src/main.cpp
+set(MONITOR_SOURCES
+        src/monitor/SystemSampler.h
+        src/monitor/SystemSampler.cpp
 
         src/ui/MainWindow.h
         src/ui/MainWindow.cpp
@@ -30,23 +29,50 @@ add_executable(SystemMonitor
 
         src/ui/widgets/MetricCard.h
         src/ui/widgets/MetricCard.cpp
+        src/ui/widgets/LiveChart.h
+        src/ui/widgets/LiveChart.cpp
 )
 
+if(APPLE)
+    enable_language(OBJCXX)
+    set(CMAKE_OBJCXX_STANDARD 20)
+    set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
+    find_library(COCOA_FRAMEWORK Cocoa REQUIRED)
+    list(APPEND MONITOR_SOURCES src/monitor/MacAppIcon.h src/monitor/MacAppIcon.mm)
+    set_source_files_properties(src/monitor/MacAppIcon.mm PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
+    set(MONITOR_PLATFORM_LIBS "${COCOA_FRAMEWORK}")
+endif()
+
+add_executable(SystemMonitor src/main.cpp ${MONITOR_SOURCES})
 
 target_link_libraries(SystemMonitor PRIVATE
         Qt6::Core
         Qt6::Widgets
-        Qt6::Sql
-        Qt6::Charts
+        ${MONITOR_PLATFORM_LIBS}
 )
 
 if(APPLE)
     set_target_properties(SystemMonitor PROPERTIES
             MACOSX_BUNDLE TRUE
             MACOSX_BUNDLE_BUNDLE_NAME "SEM Bunly - System Monitor"
+            MACOSX_BUNDLE_GUI_IDENTIFIER "com.systemmonitor.desktop"
+            MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+            MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
     )
 elseif(WIN32)
     set_target_properties(SystemMonitor PROPERTIES
             WIN32_EXECUTABLE TRUE
+    )
+endif()
+
+include(CTest)
+if(BUILD_TESTING)
+    add_executable(MonitorTests tests/MonitorTests.cpp ${MONITOR_SOURCES})
+    target_include_directories(MonitorTests PRIVATE src)
+    target_link_libraries(MonitorTests PRIVATE Qt6::Core Qt6::Widgets ${MONITOR_PLATFORM_LIBS})
+    add_test(NAME MonitorTests COMMAND MonitorTests)
+    set_tests_properties(MonitorTests PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+            TIMEOUT 20
     )
 endif()
