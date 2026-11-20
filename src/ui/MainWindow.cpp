@@ -201,9 +201,9 @@ public:
     using QStyledItemDelegate::QStyledItemDelegate;
     QString displayText(const QVariant &value, const QLocale &locale) const override
     {
-        const double mib = value.toDouble();
-        return mib >= 1024 ? locale.toString(mib / 1024, 'f', 2) + " GiB" :
-                             locale.toString(mib, 'f', 1) + " MiB";
+        const double mb = value.toDouble();
+        return mb >= 1000 ? locale.toString(mb / 1000, 'f', 2) + " GB" :
+                           locale.toString(mb, 'f', 1) + " MB";
     }
 };
 
@@ -214,9 +214,9 @@ QString percent(double value)
 
 QString capacity(quint64 used, quint64 total)
 {
-    constexpr double gib = 1024.0 * 1024.0 * 1024.0;
-    return QString("%1 / %2 GiB").arg(double(used) / gib, 0, 'f', 2)
-        .arg(double(total) / gib, 0, 'f', 2);
+    constexpr double gb = 1000000000.0;
+    return QString("%1 / %2 GB").arg(double(used) / gb, 0, 'f', 2)
+        .arg(double(total) / gb, 0, 'f', 2);
 }
 
 QTableWidget *makeTable(const QStringList &headers, QWidget *parent)
@@ -312,7 +312,7 @@ void MainWindow::setupMonitorPages()
     processSearch_->setClearButtonEnabled(true);
     processSearch_->setAccessibleName("Search processes");
     processLayout->addWidget(processSearch_);
-    processTable_ = makeTable({"PID", "CPU %", "RSS (MiB)", "Command"}, pages_);
+    processTable_ = makeTable({"PID", "CPU %", "RSS (MB)", "Command"}, pages_);
     processTable_->setIconSize(QSize(24, 24));
     processTable_->setSortingEnabled(true);
     processTable_->sortItems(1, Qt::DescendingOrder);
@@ -419,7 +419,7 @@ void MainWindow::readProcesses()
         const auto match = pattern.match(line);
         if (!match.hasMatch()) continue;
         rows.append({match.captured(1), match.captured(2).toDouble(),
-            match.captured(3).toDouble() / 1024.0, match.captured(4)});
+            match.captured(3).toDouble() * 1024.0 / 1000000.0, match.captured(4)});
     }
     std::sort(rows.begin(), rows.end(), [](const Row &a, const Row &b) { return a.cpu > b.cpu; });
     processTable_->setSortingEnabled(false);

@@ -12,6 +12,7 @@
 #include <QSettings>
 #include <QSpinBox>
 #include <QStatusBar>
+#include <QStyledItemDelegate>
 #include <QStackedWidget>
 #include <QTableWidget>
 #include <QTemporaryDir>
@@ -92,6 +93,11 @@ int main(int argc, char **argv)
     navigation->setCurrentRow(2);
     auto *memoryApps = pages->widget(2)->findChild<QTableWidget *>("memoryApps");
     CHECK(memoryApps && memoryApps->rowCount() == processes->rowCount());
+    auto *memoryDelegate = qobject_cast<QStyledItemDelegate *>(memoryApps->itemDelegateForColumn(1));
+    CHECK(memoryDelegate);
+    CHECK(memoryDelegate->displayText(999.0, QLocale::c()) == "999.0 MB");
+    CHECK(memoryDelegate->displayText(1000.0, QLocale::c()) == "1.00 GB");
+    CHECK(processes->horizontalHeaderItem(2)->text() == "RSS (MB)");
     CHECK(!memoryApps->item(0, 0)->icon().isNull());
     for (int i = 1; i < memoryApps->rowCount(); ++i)
         CHECK(memoryApps->item(i - 1, 1)->data(Qt::DisplayRole).toDouble() >=
