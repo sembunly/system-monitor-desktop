@@ -77,8 +77,8 @@ void MainWindow::setupUi()
         "Dashboard",
         "CPU",
         "Memory",
-        "Disk",
-        "Processes"
+        "Disk"
+        // "Processes"
         // "Settings"
     });
 
