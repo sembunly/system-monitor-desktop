@@ -78,8 +78,8 @@ void MainWindow::setupUi()
         "CPU",
         "Memory",
         "Disk",
-        "Processes",
-        "Settings"
+        "Processes"
+        // "Settings"
     });
 
     navigation->setCurrentRow(0);
@@ -300,8 +300,7 @@ void MainWindow::setupMonitorPages()
     }
 
     auto *processLayout = createPage("Processes",
-        "Read-only process list. CPU is the operating system's ps average; RSS is resident memory. "
-        "Process CPU can exceed 100% when using multiple cores.");
+        "");
     processStatus_ = new QLabel("Waiting for refresh");
     processLayout->addWidget(processStatus_);
     auto *refreshButton = new QPushButton("Refresh processes");
