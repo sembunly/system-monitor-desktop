@@ -1,6 +1,9 @@
 #include "monitor/SystemSampler.h"
 #include "ui/MainWindow.h"
+#include "ui/pages/DashboardPage.h"
 #include "ui/widgets/LiveChart.h"
+#include "ui/widgets/CoreBarChart.h"
+#include "ui/widgets/MetricCard.h"
 
 #include <QApplication>
 #include <QCheckBox>
@@ -9,6 +12,7 @@
 #include <QListWidget>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QSettings>
 #include <QSpinBox>
 #include <QStatusBar>
@@ -50,11 +54,23 @@ int main(int argc, char **argv)
     CHECK(sample.memory >= 0 && sample.memory <= 100);
     CHECK(sample.diskTotal > 0 && sample.diskUsed <= sample.diskTotal);
     CHECK(sample.disk >= 0 && sample.disk <= 100);
+#ifdef Q_OS_MACOS
+    CHECK(sample.swap >= 0 && sample.swap <= 100);
+    CHECK(sample.swapUsed <= sample.swapTotal);
+    CHECK(!sample.cpuCores.isEmpty());
+    for (const double usage : sample.cpuCores) CHECK(usage >= 0 && usage <= 100);
+#endif
 
     MainWindow window;
     window.show();
     const auto charts = window.findChildren<LiveChart *>();
-    CHECK(charts.size() == 4);
+    CHECK(charts.size() == 6);
+    CHECK(window.findChildren<MetricCard *>().size() == 4);
+    auto *coreChart = window.findChild<CoreBarChart *>();
+    CHECK(coreChart);
+#ifdef Q_OS_MACOS
+    CHECK(coreChart->coreCount() == sample.cpuCores.size());
+#endif
     for (auto *chart : charts) CHECK(chart->sampleCount() == 1);
     auto *navigation = window.findChild<QListWidget *>();
     auto *pages = window.findChild<QStackedWidget *>();
@@ -125,11 +141,35 @@ int main(int argc, char **argv)
     for (auto *chart : charts) CHECK(chart->sampleCount() == chartCount + 1);
     LiveChart boundedChart("Test", {"CPU"}, {QColor("#38BDF8")});
     boundedChart.resize(600, 250);
-    for (int i = 0; i < 300; ++i) boundedChart.appendSample({double(i % 101)});
-    CHECK(boundedChart.sampleCount() == 240);
+    for (int i = 0; i < 4000; ++i) boundedChart.appendSample({double(i % 101)});
+    CHECK(boundedChart.sampleCount() == 3600);
+    boundedChart.setZoomControlsVisible(true);
+    const auto ranges = boundedChart.findChildren<QPushButton *>();
+    CHECK(ranges.size() == 4);
+    for (auto *range : ranges) if (range->text() == "5m") range->click();
+    CHECK(boundedChart.timeWindow() == 300000);
+    boundedChart.setTimeWindow(0);
+    CHECK(boundedChart.timeWindow() == 0);
+    boundedChart.setScale(16, "GB");
     boundedChart.appendSample({-1});
     CHECK(!boundedChart.grab().isNull());
     navigation->setCurrentRow(0);
+    window.resize(1000, 700);
+    wait(80);
+    CHECK(!window.grab().isNull());
+    const auto cards = window.findChildren<MetricCard *>();
+    CHECK(cards[0]->y() != cards[2]->y());
+    window.resize(1440, 960);
+    wait(80);
+    CHECK(cards[0]->y() == cards[3]->y());
+    SystemSample emptySwap = sample;
+    emptySwap.swapTotal = emptySwap.swapUsed = 0;
+    emptySwap.swap = 0;
+    emptySwap.cpu = -1;
+    DashboardPage edgeCaseDashboard;
+    edgeCaseDashboard.resize(1000, 800);
+    edgeCaseDashboard.updateSample(emptySwap);
+    CHECK(!edgeCaseDashboard.grab().isNull());
     if (qEnvironmentVariableIsSet("MONITOR_PREVIEW"))
         CHECK(window.grab().save(qEnvironmentVariable("MONITOR_PREVIEW")));
     std::cout << "Native metrics, charts, navigation, refresh, pause, preferences and processes passed.\n";

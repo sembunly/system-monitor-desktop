@@ -4,7 +4,9 @@ A C++20 and Qt 6 desktop app for monitoring system performance.
 
 ## Features
 
-- Live CPU, RAM, and disk monitoring with charts
+- CPU, RAM, swap, and disk summary cards with live gauges
+- CPU area chart, per-core bars, and separate RAM/swap charts
+- Chart zoom (1m/5m/30m/All) and hover values; up to 30 minutes retained in memory
 - Memory usage by app, with native macOS icons
 
 ## Requirements
@@ -13,10 +15,10 @@ macOS, Xcode Command Line Tools, CMake 3.21+, and Qt 6 Core and Widgets.
 
 ## Normal Run (Debug)
 
-Run from the project root. This workspace has Qt at the path below; change it if your Qt installation is elsewhere.
+Run from the project root. Qt is installed outside the build folder; change its path if needed.
 
 ```sh
-MONITOR_QT_PREFIX="$PWD/build/qt-sdk/6.8.3/macos"
+MONITOR_QT_PREFIX="$HOME/.local/share/system-monitor-qt/6.8.3/macos"
 
 cmake -S . -B build/debug \
   -DCMAKE_BUILD_TYPE=Debug \
@@ -29,7 +31,7 @@ open build/debug/SystemMonitor.app
 ## Release Run
 
 ```sh
-MONITOR_QT_PREFIX="$PWD/build/qt-sdk/6.8.3/macos"
+MONITOR_QT_PREFIX="$HOME/.local/share/system-monitor-qt/6.8.3/macos"
 
 cmake -S . -B build/release \
   -DCMAKE_BUILD_TYPE=Release \
@@ -47,7 +49,7 @@ To remove the entire build folder, run from the project root:
 rm -rf build
 ```
 
-This also removes the bundled Qt SDK. Before rebuilding, install Qt outside `build` and use its path for `MONITOR_QT_PREFIX` in the commands above.
+The external Qt SDK is preserved. Configure again using the commands above before rebuilding.
 
 To rebuild without removing the SDK:
 

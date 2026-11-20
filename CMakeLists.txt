@@ -20,6 +20,12 @@ find_package(Qt6 REQUIRED COMPONENTS
 set(MONITOR_SOURCES
         src/monitor/SystemSampler.h
         src/monitor/SystemSampler.cpp
+        src/monitor/cpu/CpuSampler.h
+        src/monitor/cpu/CpuSampler.cpp
+        src/monitor/ram/RamSampler.h
+        src/monitor/ram/RamSampler.cpp
+        src/monitor/disk/DiskSampler.h
+        src/monitor/disk/DiskSampler.cpp
 
         src/ui/MainWindow.h
         src/ui/MainWindow.cpp
@@ -31,6 +37,8 @@ set(MONITOR_SOURCES
         src/ui/widgets/MetricCard.cpp
         src/ui/widgets/LiveChart.h
         src/ui/widgets/LiveChart.cpp
+        src/ui/widgets/CoreBarChart.h
+        src/ui/widgets/CoreBarChart.cpp
 )
 
 if(APPLE)

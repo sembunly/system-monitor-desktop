@@ -41,7 +41,6 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
-    // Stop callbacks before the page widgets are destroyed by QMainWindow.
     timer_->stop();
     processTimeout_->stop();
     disconnect(process_, nullptr, this, nullptr);
@@ -55,8 +54,8 @@ MainWindow::~MainWindow()
 void MainWindow::setupUi()
 {
     setWindowTitle("System Monitor");
-    resize(1200, 760);
-    setMinimumSize(900, 600);
+    resize(1440, 960);
+    setMinimumSize(1000, 700);
 
     auto *central = new QWidget(this);
     auto *root = new QHBoxLayout(central);
@@ -65,7 +64,7 @@ void MainWindow::setupUi()
 
     auto *sidebar = new QWidget(central);
     sidebar->setObjectName("sidebar");
-    sidebar->setFixedWidth(230);
+    sidebar->setFixedWidth(200);
 
     auto *sidebarLayout = new QVBoxLayout(sidebar);
     sidebarLayout->setContentsMargins(16, 28, 16, 20);
@@ -113,7 +112,7 @@ void MainWindow::setupUi()
 
     setStyleSheet(R"(
         QMainWindow, QWidget {
-            background: #0B1220;
+            background: #090F16;
             color: #E7EDF7;
             font-family: ".AppleSystemUIFont", "Segoe UI", sans-serif;
             font-size: 13px;
@@ -123,7 +122,7 @@ void MainWindow::setupUi()
         #monitorStatus { color: #34D399; padding: 12px; background: #152A2C; border-radius: 8px; }
 
         #sidebar {
-            background: #101B2C;
+            background: #0D151F;
             border-right: 1px solid #25334A;
         }
 
@@ -158,13 +157,13 @@ void MainWindow::setupUi()
         }
 
         #metricCard {
-            background: #142237;
-            border: 1px solid #25334A;
-            border-radius: 16px;
+            background: #0D141C;
+            border: 1px solid #25303C;
+            border-radius: 10px;
         }
 
         #metricTitle {
-            font-size: 14px;
+            font-size: 11px;
             color: #94A3B8;
         }
 
@@ -376,10 +375,7 @@ void MainWindow::setupMonitorPages()
 void MainWindow::refresh()
 {
     const auto sample = sampler_.sample();
-    dashboard_->updateCpu(sample.cpu);
-    dashboard_->updateMemory(sample.memory);
-    dashboard_->updateDisk(sample.disk);
-    dashboard_->appendSample(sample.cpu, sample.memory, sample.disk);
+    dashboard_->updateSample(sample);
     const double values[]{sample.cpu, sample.memory, sample.disk};
     metricLabels_[0]->setText(sample.cpu < 0 ? "Waiting for CPU sample…" : percent(sample.cpu));
     metricLabels_[1]->setText(sample.memory < 0 ? "Unavailable" :
@@ -462,7 +458,6 @@ void MainWindow::readProcesses()
 
 QIcon MainWindow::iconForProcess(const QString &command)
 {
-    // Resolve the outer app bundle so helpers share the parent application's icon.
     const auto appEnd = command.indexOf(".app/", 0, Qt::CaseInsensitive);
     const QString bundle = appEnd >= 0 ? command.left(appEnd + 4) : QString();
     const QString key = bundle.isEmpty() ? QStringLiteral("<background-process>") : bundle;
