@@ -14,21 +14,16 @@
 #include <QStackedWidget>
 #include <QVBoxLayout>
 #include <QWidget>
-#include <QCheckBox>
 #include <QDateTime>
 #include <QHeaderView>
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QProgressBar>
-#include <QPushButton>
 #include <QRegularExpression>
-#include <QSettings>
-#include <QSpinBox>
 #include <QStatusBar>
 #include <QTableWidget>
 #include <QThread>
 #include <QTimer>
-#include <algorithm>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -76,8 +71,7 @@ void MainWindow::setupUi()
         "Dashboard",
         "CPU",
         "Memory",
-        "Disk",
-        "Settings"
+        "Disk"
     });
 
     navigation->setCurrentRow(0);
@@ -88,9 +82,6 @@ void MainWindow::setupUi()
     sidebarLayout->addWidget(brandSubtitle);
     sidebarLayout->addSpacing(24);
     sidebarLayout->addWidget(navigation);
-    monitorStatus_ = new QLabel(sidebar);
-    monitorStatus_->setObjectName("monitorStatus");
-    sidebarLayout->addWidget(monitorStatus_);
     auto *credit = new QLabel("Powered by SEM Bunly", sidebar);
     credit->setObjectName("mutedText");
     sidebarLayout->addWidget(credit);
@@ -117,8 +108,6 @@ void MainWindow::setupUi()
         }
         QLabel { background: transparent; }
         #mutedText { color: #94A6BF; font-size: 12px; }
-        #monitorStatus { color: #34D399; padding: 12px; background: #152A2C; border-radius: 8px; }
-
         #sidebar {
             background: #0D151F;
             border-right: 1px solid #25334A;
@@ -171,7 +160,7 @@ void MainWindow::setupUi()
             color: #38BDF8;
         }
 
-        QTableWidget, QSpinBox, QLineEdit {
+        QTableWidget {
             background: #111D30;
             border: 1px solid #334155;
             border-radius: 8px;
@@ -297,35 +286,10 @@ void MainWindow::setupMonitorPages()
         }
     }
 
-    auto *settingsLayout = createPage("Settings", "Preferences are saved automatically.");
-    settingsLayout->addWidget(new QLabel("Refresh interval (seconds)"));
-    auto *interval = new QSpinBox;
-    interval->setRange(1, 30);
-    QSettings settings;
-    interval->setValue(std::clamp(settings.value("refreshSeconds", 2).toInt(), 1, 30));
-    settingsLayout->addWidget(interval);
-    auto *paused = new QCheckBox("Pause automatic updates");
-    paused->setChecked(settings.value("paused", false).toBool());
-    monitorStatus_->setText("●  Updates paused");
-    monitorStatus_->setVisible(paused->isChecked());
-    settingsLayout->addWidget(paused);
-    auto *sampleNow = new QPushButton("Sample now");
-    settingsLayout->addWidget(sampleNow);
-    settingsLayout->addStretch();
     timer_ = new QTimer(this);
-    timer_->setInterval(interval->value() * 1000);
+    timer_->setInterval(2000);
     connect(timer_, &QTimer::timeout, this, &MainWindow::refresh);
-    connect(sampleNow, &QPushButton::clicked, this, &MainWindow::refresh);
-    connect(interval, &QSpinBox::valueChanged, this, [this](int seconds) {
-        QSettings().setValue("refreshSeconds", seconds);
-        timer_->setInterval(seconds * 1000);
-    });
-    connect(paused, &QCheckBox::toggled, this, [this](bool value) {
-        QSettings().setValue("paused", value);
-        monitorStatus_->setVisible(value);
-        if (value) timer_->stop(); else timer_->start();
-    });
-    if (!paused->isChecked()) timer_->start();
+    timer_->start();
 
     process_ = new QProcess(this);
     auto environment = QProcessEnvironment::systemEnvironment();

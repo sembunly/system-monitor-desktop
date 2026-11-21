@@ -6,19 +6,15 @@
 #include "ui/widgets/MetricCard.h"
 
 #include <QApplication>
-#include <QCheckBox>
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QListWidget>
 #include <QPushButton>
 #include <QScrollArea>
-#include <QSettings>
-#include <QSpinBox>
 #include <QStatusBar>
 #include <QStyledItemDelegate>
 #include <QStackedWidget>
 #include <QTableWidget>
-#include <QTemporaryDir>
 #include <QThread>
 #include <QTimer>
 #include <iostream>
@@ -37,13 +33,6 @@ static void wait(int milliseconds)
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
-    QTemporaryDir preferences;
-    CHECK(preferences.isValid());
-    QCoreApplication::setOrganizationName("SystemMonitorTests");
-    QCoreApplication::setApplicationName("IsolatedTests");
-    QSettings::setDefaultFormat(QSettings::IniFormat);
-    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, preferences.path());
-
     SystemSampler sampler;
     CHECK(sampler.sample().cpu == -1);
     QThread::msleep(150);
@@ -73,30 +62,17 @@ int main(int argc, char **argv)
     for (auto *chart : charts) CHECK(chart->sampleCount() == 1);
     auto *navigation = window.findChild<QListWidget *>();
     auto *pages = window.findChild<QStackedWidget *>();
-    CHECK(navigation && pages && navigation->count() == 5 && pages->count() == 5);
-    for (int i = 0; i < 5; ++i) {
+    CHECK(navigation && pages && navigation->count() == 4 && pages->count() == 4);
+    for (int i = 0; i < 4; ++i) {
         navigation->setCurrentRow(i);
         CHECK(pages->currentIndex() == i);
     }
-    CHECK(navigation->item(4)->text() == "Settings");
-    auto *interval = pages->widget(4)->findChild<QSpinBox *>();
-    auto *paused = pages->widget(4)->findChild<QCheckBox *>();
-    CHECK(interval && paused);
     int updates = 0;
     QObject::connect(window.statusBar(), &QStatusBar::messageChanged, &window,
         [&updates](const QString &) { ++updates; });
-    interval->setValue(1);
-    wait(1200);
+    wait(2200);
     CHECK(updates >= 1);
     for (auto *chart : charts) CHECK(chart->sampleCount() >= 2);
-    paused->setChecked(true);
-    const int count = updates;
-    const int chartCount = charts.first()->sampleCount();
-    wait(1200);
-    CHECK(updates == count);
-    for (auto *chart : charts) CHECK(chart->sampleCount() == chartCount);
-    CHECK(QSettings().value("refreshSeconds").toInt() == 1);
-    CHECK(QSettings().value("paused").toBool());
 #ifndef Q_OS_WIN
     navigation->setCurrentRow(2);
     auto *memoryApps = pages->widget(2)->findChild<QTableWidget *>("memoryApps");
@@ -116,12 +92,6 @@ int main(int argc, char **argv)
     if (qEnvironmentVariableIsSet("MEMORY_PREVIEW"))
         CHECK(window.grab().save(qEnvironmentVariable("MEMORY_PREVIEW")));
 #endif
-    navigation->setCurrentRow(4);
-    auto *sampleNow = pages->widget(4)->findChild<QPushButton *>();
-    CHECK(sampleNow);
-    sampleNow->click();
-    CHECK(updates > count);
-    for (auto *chart : charts) CHECK(chart->sampleCount() == chartCount + 1);
     LiveChart boundedChart("Test", {"CPU"}, {QColor("#38BDF8")});
     boundedChart.resize(600, 250);
     for (int i = 0; i < 4000; ++i) boundedChart.appendSample({double(i % 101)});
@@ -155,6 +125,6 @@ int main(int argc, char **argv)
     CHECK(!edgeCaseDashboard.grab().isNull());
     if (qEnvironmentVariableIsSet("MONITOR_PREVIEW"))
         CHECK(window.grab().save(qEnvironmentVariable("MONITOR_PREVIEW")));
-    std::cout << "Native metrics, charts, navigation, refresh, pause, and preferences passed.\n";
+    std::cout << "Native metrics, charts, navigation, and refresh passed.\n";
     return 0;
 }

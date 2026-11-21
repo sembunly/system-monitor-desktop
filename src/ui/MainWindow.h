@@ -35,7 +35,6 @@ private:
     QLabel *metricLabels_[3]{};
     QProgressBar *metricBars_[3]{};
     LiveChart *metricCharts_[3]{};
-    QLabel *monitorStatus_ = nullptr;
     QTableWidget *memoryTable_ = nullptr;
     QLabel *memoryStatus_ = nullptr;
     QFileIconProvider iconProvider_;
