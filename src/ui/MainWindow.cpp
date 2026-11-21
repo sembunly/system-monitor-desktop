@@ -8,7 +8,6 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
-#include <QLineEdit>
 #include <QFileInfo>
 #include <QSplitter>
 #include <QStyledItemDelegate>
@@ -77,9 +76,8 @@ void MainWindow::setupUi()
         "Dashboard",
         "CPU",
         "Memory",
-        "Disk"
-        // "Processes"
-        // "Settings"
+        "Disk",
+        "Settings"
     });
 
     navigation->setCurrentRow(0);
@@ -102,7 +100,7 @@ void MainWindow::setupUi()
     pages_->addWidget(dashboard_);
     connect(navigation, &QListWidget::currentRowChanged, pages_, &QStackedWidget::setCurrentIndex);
     connect(pages_, &QStackedWidget::currentChanged, this, [this](int index) {
-        if ((index == 2 || index == 4) && process_) refreshProcesses();
+        if (index == 2 && process_) refreshMemoryApps();
     });
 
     root->addWidget(sidebar);
@@ -299,26 +297,6 @@ void MainWindow::setupMonitorPages()
         }
     }
 
-    auto *processLayout = createPage("Processes",
-        "");
-    processStatus_ = new QLabel("Waiting for refresh");
-    processLayout->addWidget(processStatus_);
-    auto *refreshButton = new QPushButton("Refresh processes");
-    processLayout->addWidget(refreshButton);
-    processSearch_ = new QLineEdit;
-    processSearch_->setPlaceholderText("Search by PID or command…");
-    processSearch_->setClearButtonEnabled(true);
-    processSearch_->setAccessibleName("Search processes");
-    processLayout->addWidget(processSearch_);
-    processTable_ = makeTable({"PID", "CPU %", "RSS (MB)", "Command"}, pages_);
-    processTable_->setIconSize(QSize(24, 24));
-    processTable_->setSortingEnabled(true);
-    processTable_->sortItems(1, Qt::DescendingOrder);
-    processLayout->addWidget(processTable_, 1);
-    connect(processSearch_, &QLineEdit::textChanged, this, &MainWindow::filterProcesses);
-    connect(processTable_->model(), &QAbstractItemModel::layoutChanged,
-            this, [this] { filterProcesses(); });
-
     auto *settingsLayout = createPage("Settings", "Preferences are saved automatically.");
     settingsLayout->addWidget(new QLabel("Refresh interval (seconds)"));
     auto *interval = new QSpinBox;
@@ -357,17 +335,16 @@ void MainWindow::setupMonitorPages()
     processTimeout_->setSingleShot(true);
     connect(processTimeout_, &QTimer::timeout, this, [this] {
         process_->kill();
-        setProcessStatus("Process refresh timed out. Try refreshing again.");
+        setMemoryAppsStatus("Refresh timed out. Try refreshing again.");
     });
-    connect(refreshButton, &QPushButton::clicked, this, &MainWindow::refreshProcesses);
     connect(process_, &QProcess::finished, this, [this](int code, QProcess::ExitStatus status) {
         processTimeout_->stop();
-        if (code == 0 && status == QProcess::NormalExit) readProcesses();
-        else setProcessStatus("Process refresh failed. Try refreshing again.");
+        if (code == 0 && status == QProcess::NormalExit) readMemoryApps();
+        else setMemoryAppsStatus("Refresh failed. Try refreshing again.");
     });
     connect(process_, &QProcess::errorOccurred, this, [this](QProcess::ProcessError) {
         processTimeout_->stop();
-        setProcessStatus("Cannot read processes: " + process_->errorString());
+        setMemoryAppsStatus("Cannot read application memory: " + process_->errorString());
     });
 }
 
@@ -387,16 +364,16 @@ void MainWindow::refresh()
         metricCharts_[i]->appendSample({values[i]});
     }
     statusBar()->showMessage("Updated " + QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
-    if (pages_->currentIndex() == 2 || pages_->currentIndex() == 4) refreshProcesses();
+    if (pages_->currentIndex() == 2) refreshMemoryApps();
 }
 
-void MainWindow::refreshProcesses()
+void MainWindow::refreshMemoryApps()
 {
     if (process_->state() != QProcess::NotRunning) return;
 #ifdef Q_OS_WIN
-    setProcessStatus("Process listing is currently supported on macOS and Linux.");
+    setMemoryAppsStatus("Application memory is currently supported on macOS and Linux.");
 #else
-    setProcessStatus("Refreshing…");
+    setMemoryAppsStatus("Refreshing…");
     process_->setProgram("/bin/ps");
     process_->setArguments({"-axo", "pid=,pcpu=,rss=,comm="});
     process_->start();
@@ -404,7 +381,7 @@ void MainWindow::refreshProcesses()
 #endif
 }
 
-void MainWindow::readProcesses()
+void MainWindow::readMemoryApps()
 {
     struct Row { QString pid; double cpu; double memory; QString command; };
     QList<Row> rows;
@@ -417,13 +394,11 @@ void MainWindow::readProcesses()
             match.captured(3).toDouble() * 1024.0 / 1000000.0, match.captured(4)});
     }
     std::sort(rows.begin(), rows.end(), [](const Row &a, const Row &b) { return a.cpu > b.cpu; });
-    processTable_->setSortingEnabled(false);
-    processTable_->setRowCount(rows.size());
     memoryTable_->setSortingEnabled(false);
     memoryTable_->setRowCount(rows.size());
     for (int i = 0; i < rows.size(); ++i) {
         const auto &row = rows[i];
-        const auto icon = iconForProcess(row.command);
+        const auto icon = iconForApplication(row.command);
         const auto name = QFileInfo(row.command).fileName();
         auto *appItem = new QTableWidgetItem(icon, name);
         appItem->setToolTip(row.command);
@@ -434,32 +409,17 @@ void MainWindow::readProcesses()
         auto *pidItem = new QTableWidgetItem;
         pidItem->setData(Qt::DisplayRole, row.pid.toLongLong());
         memoryTable_->setItem(i, 2, pidItem);
-        const QStringList cells{row.pid, QString::number(row.cpu, 'f', 1),
-            QString::number(row.memory, 'f', 1), row.command};
-        for (int j = 0; j < cells.size(); ++j) {
-            auto *item = new QTableWidgetItem;
-            if (j == 0) item->setData(Qt::DisplayRole, row.pid.toLongLong());
-            if (j == 1) item->setData(Qt::DisplayRole, row.cpu);
-            if (j == 2) item->setData(Qt::DisplayRole, cells[j].toDouble());
-            if (j == 3) {
-                item->setText(cells[j]);
-                item->setIcon(icon);
-            }
-            processTable_->setItem(i, j, item);
-        }
     }
-    processTable_->setSortingEnabled(true);
     memoryTable_->setSortingEnabled(true);
-    filterProcesses();
-    setProcessStatus(QString("%1 processes · updated %2")
+    setMemoryAppsStatus(QString("%1 applications · updated %2")
         .arg(rows.size()).arg(QDateTime::currentDateTime().toString("HH:mm:ss")));
 }
 
-QIcon MainWindow::iconForProcess(const QString &command)
+QIcon MainWindow::iconForApplication(const QString &command)
 {
     const auto appEnd = command.indexOf(".app/", 0, Qt::CaseInsensitive);
     const QString bundle = appEnd >= 0 ? command.left(appEnd + 4) : QString();
-    const QString key = bundle.isEmpty() ? QStringLiteral("<background-process>") : bundle;
+    const QString key = bundle.isEmpty() ? QStringLiteral("<background-application>") : bundle;
     if (auto *cached = appIcons_.object(key)) return *cached;
     QIcon icon;
     if (!bundle.isEmpty()) {
@@ -474,18 +434,7 @@ QIcon MainWindow::iconForProcess(const QString &command)
     return icon;
 }
 
-void MainWindow::setProcessStatus(const QString &text)
+void MainWindow::setMemoryAppsStatus(const QString &text)
 {
-    processStatus_->setText(text);
     memoryStatus_->setText("Memory per process (RSS) · " + text);
-}
-
-void MainWindow::filterProcesses()
-{
-    const QString query = processSearch_->text().trimmed();
-    for (int row = 0; row < processTable_->rowCount(); ++row) {
-        const bool matches = processTable_->item(row, 0)->text().contains(query, Qt::CaseInsensitive)
-            || processTable_->item(row, 3)->text().contains(query, Qt::CaseInsensitive);
-        processTable_->setRowHidden(row, !matches);
-    }
 }

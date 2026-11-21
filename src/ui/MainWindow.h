@@ -13,7 +13,6 @@ class QTableWidget;
 class QTimer;
 class QProcess;
 class LiveChart;
-class QLineEdit;
 
 class MainWindow : public QMainWindow
 {
@@ -25,11 +24,10 @@ private:
     void setupUi();
     void setupMonitorPages();
     void refresh();
-    void refreshProcesses();
-    void readProcesses();
-    void filterProcesses();
-    QIcon iconForProcess(const QString &command);
-    void setProcessStatus(const QString &text);
+    void refreshMemoryApps();
+    void readMemoryApps();
+    QIcon iconForApplication(const QString &command);
+    void setMemoryAppsStatus(const QString &text);
 
     QStackedWidget *pages_;
     DashboardPage *dashboard_;
@@ -37,14 +35,11 @@ private:
     QLabel *metricLabels_[3]{};
     QProgressBar *metricBars_[3]{};
     LiveChart *metricCharts_[3]{};
-    QLineEdit *processSearch_ = nullptr;
     QLabel *monitorStatus_ = nullptr;
-    QTableWidget *processTable_ = nullptr;
     QTableWidget *memoryTable_ = nullptr;
     QLabel *memoryStatus_ = nullptr;
     QFileIconProvider iconProvider_;
     QCache<QString, QIcon> appIcons_{128};
-    QLabel *processStatus_ = nullptr;
     QTimer *timer_ = nullptr;
     QTimer *processTimeout_ = nullptr;
     QProcess *process_ = nullptr;

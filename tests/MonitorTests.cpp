@@ -10,7 +10,6 @@
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QListWidget>
-#include <QLineEdit>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSettings>
@@ -74,14 +73,14 @@ int main(int argc, char **argv)
     for (auto *chart : charts) CHECK(chart->sampleCount() == 1);
     auto *navigation = window.findChild<QListWidget *>();
     auto *pages = window.findChild<QStackedWidget *>();
-    CHECK(navigation && pages && navigation->count() == 6 && pages->count() == 6);
-    for (int i = 0; i < 6; ++i) {
+    CHECK(navigation && pages && navigation->count() == 5 && pages->count() == 5);
+    for (int i = 0; i < 5; ++i) {
         navigation->setCurrentRow(i);
         CHECK(pages->currentIndex() == i);
     }
-    CHECK(navigation->item(5)->text() == "Settings");
-    auto *interval = pages->widget(5)->findChild<QSpinBox *>();
-    auto *paused = pages->widget(5)->findChild<QCheckBox *>();
+    CHECK(navigation->item(4)->text() == "Settings");
+    auto *interval = pages->widget(4)->findChild<QSpinBox *>();
+    auto *paused = pages->widget(4)->findChild<QCheckBox *>();
     CHECK(interval && paused);
     int updates = 0;
     QObject::connect(window.statusBar(), &QStatusBar::messageChanged, &window,
@@ -99,42 +98,26 @@ int main(int argc, char **argv)
     CHECK(QSettings().value("refreshSeconds").toInt() == 1);
     CHECK(QSettings().value("paused").toBool());
 #ifndef Q_OS_WIN
-    navigation->setCurrentRow(4);
-    auto *processes = pages->widget(4)->findChild<QTableWidget *>();
-    CHECK(processes);
-    QElapsedTimer timeout;
-    timeout.start();
-    while (!processes->rowCount() && timeout.elapsed() < 6000) wait(50);
-    CHECK(processes->rowCount() > 0);
     navigation->setCurrentRow(2);
     auto *memoryApps = pages->widget(2)->findChild<QTableWidget *>("memoryApps");
-    CHECK(memoryApps && memoryApps->rowCount() == processes->rowCount());
+    CHECK(memoryApps);
+    QElapsedTimer timeout;
+    timeout.start();
+    while (!memoryApps->rowCount() && timeout.elapsed() < 6000) wait(50);
+    CHECK(memoryApps->rowCount() > 0);
     auto *memoryDelegate = qobject_cast<QStyledItemDelegate *>(memoryApps->itemDelegateForColumn(1));
     CHECK(memoryDelegate);
     CHECK(memoryDelegate->displayText(999.0, QLocale::c()) == "999.0 MB");
     CHECK(memoryDelegate->displayText(1000.0, QLocale::c()) == "1.00 GB");
-    CHECK(processes->horizontalHeaderItem(2)->text() == "RSS (MB)");
     CHECK(!memoryApps->item(0, 0)->icon().isNull());
     for (int i = 1; i < memoryApps->rowCount(); ++i)
         CHECK(memoryApps->item(i - 1, 1)->data(Qt::DisplayRole).toDouble() >=
               memoryApps->item(i, 1)->data(Qt::DisplayRole).toDouble());
-    CHECK(!processes->item(0, 3)->icon().isNull());
     if (qEnvironmentVariableIsSet("MEMORY_PREVIEW"))
         CHECK(window.grab().save(qEnvironmentVariable("MEMORY_PREVIEW")));
-    navigation->setCurrentRow(4);
-    auto *search = pages->widget(4)->findChild<QLineEdit *>();
-    CHECK(search);
-    search->setText("no-process-can-match-this-query");
-    for (int i = 0; i < processes->rowCount(); ++i) CHECK(processes->isRowHidden(i));
-    search->clear();
-    for (int i = 0; i < processes->rowCount(); ++i) CHECK(!processes->isRowHidden(i));
-    processes->sortItems(1, Qt::DescendingOrder);
-    for (int i = 1; i < processes->rowCount(); ++i)
-        CHECK(processes->item(i - 1, 1)->data(Qt::DisplayRole).toDouble() >=
-              processes->item(i, 1)->data(Qt::DisplayRole).toDouble());
 #endif
-    navigation->setCurrentRow(5);
-    auto *sampleNow = pages->widget(5)->findChild<QPushButton *>();
+    navigation->setCurrentRow(4);
+    auto *sampleNow = pages->widget(4)->findChild<QPushButton *>();
     CHECK(sampleNow);
     sampleNow->click();
     CHECK(updates > count);
@@ -172,6 +155,6 @@ int main(int argc, char **argv)
     CHECK(!edgeCaseDashboard.grab().isNull());
     if (qEnvironmentVariableIsSet("MONITOR_PREVIEW"))
         CHECK(window.grab().save(qEnvironmentVariable("MONITOR_PREVIEW")));
-    std::cout << "Native metrics, charts, navigation, refresh, pause, preferences and processes passed.\n";
+    std::cout << "Native metrics, charts, navigation, refresh, pause, and preferences passed.\n";
     return 0;
 }
